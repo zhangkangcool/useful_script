@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
-# pass请修改pass_list
-
-'''
-python3 ./fork.py --order 从上一个优化开始
-python3 ./fork.py         每次都从input.ll开始
-python3 ./fork.py  myinput.ll
-'''
-
+# 只想arg_list中的pass，每次都从input.ll开始执行，而不是上一个pass
 import subprocess
 import os
 import argparse
 import tempfile
+import shutil
 
 # 检查工具是否可用
 def check_tool_available(tool_name):
@@ -96,7 +90,45 @@ def main():
     input_file = args.input_file
     order = args.order
 
-    pass_list = ["bdce", "dce", "inline", "simplifycfg"]
+#    pass_list = ["bdce", "dce", "inline", "simplifycfg"]
+#   opt O1  # opt -S input.ll -o output.ll -O1 -debug-pass=Structure 的输出
+    pass_list = [
+    "tti", "targetlibinfo", "tbaa", "scoped-noalias", "assumption-cache-tracker",
+    "profile-summary-info", "forceattrs", "inferattrs", "ipsccp", "called-value-propagation",
+    "attributor", "globalopt", "domtree", "mem2reg", "deadargelim", "basicaa", "aa", "loops",
+    "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter", "instcombine", "simplifycfg",
+    "basiccg", "globals-aa", "prune-eh", "always-inline", "functionattrs", "domtree", "sroa",
+    "basicaa", "aa", "memoryssa", "early-cse-memssa", "basicaa", "aa", "lazy-value-info",
+    "jump-threading", "correlated-propagation", "simplifycfg", "domtree", "basicaa", "aa",
+    "loops", "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter", "instcombine",
+    "libcalls-shrinkwrap", "loops", "branch-prob", "block-freq", "lazy-branch-prob",
+    "lazy-block-freq", "opt-remark-emitter", "pgo-memop-opt", "basicaa", "aa", "loops",
+    "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter", "tailcallelim", "simplifycfg",
+    "reassociate", "domtree", "loops", "loop-simplify", "lcssa-verification", "lcssa", "basicaa",
+    "aa", "scalar-evolution", "loop-rotate", "licm", "loop-unswitch", "simplifycfg", "domtree",
+    "basicaa", "aa", "loops", "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter",
+    "instcombine", "loop-simplify", "lcssa-verification", "lcssa", "scalar-evolution", "indvars",
+    "loop-idiom", "loop-deletion", "loop-unroll", "phi-values", "memdep", "memcpyopt", "sccp",
+    "demanded-bits", "bdce", "basicaa", "aa", "lazy-branch-prob", "lazy-block-freq",
+    "opt-remark-emitter", "instcombine", "lazy-value-info", "jump-threading", "correlated-propagation",
+    "basicaa", "aa", "phi-values", "memdep", "dse", "loops", "loop-simplify", "lcssa-verification",
+    "lcssa", "basicaa", "aa", "scalar-evolution", "licm", "postdomtree", "adce", "simplifycfg",
+    "domtree", "basicaa", "aa", "loops", "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter",
+    "instcombine", "barrier", "basiccg", "rpo-functionattrs", "globalopt", "globaldce", "basiccg",
+    "globals-aa", "float2int", "domtree", "loops", "loop-simplify", "lcssa-verification", "lcssa",
+    "basicaa", "aa", "scalar-evolution", "loop-rotate", "loop-accesses", "lazy-branch-prob",
+    "lazy-block-freq", "opt-remark-emitter", "loop-distribute", "branch-prob", "block-freq",
+    "scalar-evolution", "basicaa", "aa", "loop-accesses", "demanded-bits", "lazy-branch-prob",
+    "lazy-block-freq", "opt-remark-emitter", "loop-vectorize", "loop-simplify", "scalar-evolution",
+    "aa", "loop-accesses", "lazy-branch-prob", "lazy-block-freq", "loop-load-elim", "basicaa", "aa",
+    "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter", "instcombine", "simplifycfg", "domtree",
+    "basicaa", "aa", "loops", "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter", "instcombine",
+    "loop-simplify", "lcssa-verification", "lcssa", "scalar-evolution", "loop-unroll", "lazy-branch-prob",
+    "lazy-block-freq", "opt-remark-emitter", "transform-warning", "alignment-from-assumptions",
+    "strip-dead-prototypes", "domtree", "loops", "branch-prob", "block-freq", "loop-simplify",
+    "lcssa-verification", "lcssa", "basicaa", "aa", "scalar-evolution", "block-freq", "loop-sink",
+    "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter"
+    ]
     print(f"pass_list: {pass_list}")
 
     # 验证输入文件是否存在
@@ -114,6 +146,27 @@ def main():
     # 输出结果
     print_results(effective_passes, ineffective_passes)
 
+def movefile():
+    # 获取当前工作目录
+    current_directory = os.getcwd()
+
+    # 创建 output 文件夹（如果它不存在）
+    output_dir = os.path.join(current_directory, 'output')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # 遍历当前目录中的所有文件
+    for filename in os.listdir(current_directory):
+        if filename.startswith('output_'):
+            # 构建源文件和目标文件的路径
+            source_file = os.path.join(current_directory, filename)
+            destination_file = os.path.join(output_dir, filename)
+
+            # 移动文件到 output 文件夹
+            shutil.move(source_file, destination_file)
+
+
+
 if __name__ == "__main__":
     main()
-
+    movefile()
