@@ -6,6 +6,8 @@ import argparse
 import tempfile
 import shutil
 
+file_index = 0;
+
 # 检查工具是否可用
 def check_tool_available(tool_name):
     try:
@@ -15,7 +17,9 @@ def check_tool_available(tool_name):
 
 # 运行 opt 并返回输出文件路径
 def run_opt_pass(input_file, pass_name):
-    output_file = "output_" + pass_name + ".ll"
+    global file_index
+    output_file = f"output_{file_index:03d}_{pass_name}.ll"
+    file_index = file_index + 1
 
     # 构建并运行 opt 命令
     cmd = ["opt", "-S", f"-{pass_name}", input_file, "-o", output_file]
