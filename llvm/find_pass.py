@@ -16,13 +16,17 @@ def check_tool_available(tool_name):
         raise RuntimeError(f"{tool_name} not found. Please ensure LLVM is installed and {tool_name} is in your PATH.")
 
 # 运行 opt 并返回输出文件路径
-def run_opt_pass(input_file, pass_name):
+def run_opt_pass(input_file, pass_name, pass_opt):
     global file_index
+
     output_file = f"output_{file_index:03d}_{pass_name}.ll"
     file_index = file_index + 1
 
     # 构建并运行 opt 命令
     cmd = ["opt", "-S", f"-{pass_name}", input_file, "-o", output_file]
+    if (pass_opt != ""):
+        cmd = ["opt", "-S", f"-{pass_name}", f"{pass_opt}", input_file, "-o", output_file]
+
     print(f"Running opt command: {' '.join(cmd)}")
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
@@ -48,9 +52,18 @@ def analyze_passes(input_file, pass_list, order):
     ineffective_passes = []
 
     # 逐个运行 Pass 并检查效果
-    for pass_name in pass_list:
+    for pass_info in pass_list:
+        # 按空格分割字符串, 处理 "loop-unroll -unroll-threshold=0"的情况
+        parts = pass_info.split(" ", 1)
+        pass_name = parts[0]
+        if len(parts) > 1:
+            pass_opt = parts[1]
+        else:
+            pass_opt = ""
+
         print(f"\nAnalyzing pass: {pass_name}")
-        output_file = run_opt_pass(input_file, pass_name)
+
+        output_file = run_opt_pass(input_file, pass_name, pass_opt)
 
         if output_file is None:
             print(f"Skipping {pass_name} due to execution error.")
@@ -113,6 +126,7 @@ def main():
     "basicaa", "aa", "loops", "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter",
     "instcombine", "loop-simplify", "lcssa-verification", "lcssa", "scalar-evolution", "indvars",
     "loop-idiom", "loop-deletion", "loop-unroll", "phi-values", "memdep", "memcpyopt", "sccp",
+#    "loop-idiom", "loop-deletion", "loop-unroll -unroll-threshold=0", "phi-values", "memdep", "memcpyopt", "sccp",
     "demanded-bits", "bdce", "basicaa", "aa", "lazy-branch-prob", "lazy-block-freq",
     "opt-remark-emitter", "instcombine", "lazy-value-info", "jump-threading", "correlated-propagation",
     "basicaa", "aa", "phi-values", "memdep", "dse", "loops", "loop-simplify", "lcssa-verification",
@@ -128,6 +142,7 @@ def main():
     "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter", "instcombine", "simplifycfg", "domtree",
     "basicaa", "aa", "loops", "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter", "instcombine",
     "loop-simplify", "lcssa-verification", "lcssa", "scalar-evolution", "loop-unroll", "lazy-branch-prob",
+#    "loop-simplify", "lcssa-verification", "lcssa", "scalar-evolution", "loop-unroll -unroll-threshold=0", "lazy-branch-prob",
     "lazy-block-freq", "opt-remark-emitter", "transform-warning", "alignment-from-assumptions",
     "strip-dead-prototypes", "domtree", "loops", "branch-prob", "block-freq", "loop-simplify",
     "lcssa-verification", "lcssa", "basicaa", "aa", "scalar-evolution", "block-freq", "loop-sink",
