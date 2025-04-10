@@ -1,0 +1,5 @@
+-tbaa
+-scoped-noalias
+-assumption-cache-tracker
+-loop-unroll -unroll-threshold=0
+-mem2reg

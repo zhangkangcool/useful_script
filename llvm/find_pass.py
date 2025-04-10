@@ -6,6 +6,8 @@ import argparse
 import tempfile
 import shutil
 
+from preprocess import get_pass_info_list
+
 file_index = 0;
 
 # 检查工具是否可用
@@ -47,15 +49,16 @@ def compare_ir_with_llvm_diff(file1, file2):
 
 # 主函数：分析哪些 Pass 起作用
 # order 表面是依次执行，还是每次的输入都是Input.ll
+#    pass_list = ["-bdce", "-dce", "-inline", "-simplifycfg"]
 def analyze_passes(input_file, pass_list, order):
     effective_passes = []
     ineffective_passes = []
 
     # 逐个运行 Pass 并检查效果
     for pass_info in pass_list:
-        # 按空格分割字符串, 处理 "loop-unroll -unroll-threshold=0"的情况
+        # 按空格分割字符串, 处理 "-loop-unroll -unroll-threshold=0"的情况
         parts = pass_info.split(" ", 1)
-        pass_name = parts[0]
+        pass_name = parts[0][1:]   # 去掉pass名字前面的`-`
         if len(parts) > 1:
             pass_opt = parts[1]
         else:
@@ -102,53 +105,12 @@ def main():
     parser = argparse.ArgumentParser(description="Analyze which LLVM passes affect a given .ll file using llvm-diff.")
     parser.add_argument("input_file", nargs = '?', help="Path to the input .ll file", default = "input.ll")
     parser.add_argument("--order", action="store_true", help="Order execute the arg passes, default is false")
+    parser.add_argument("--preprocess_file", type = str, help = "preprocess_file name default preprocess_passname.txt", default = "preprocess_passname.txt")
     args = parser.parse_args()
 
     input_file = args.input_file
     order = args.order
-
-#    pass_list = ["bdce", "dce", "inline", "simplifycfg"]
-#   opt O1  # opt -S input.ll -o output.ll -O1 -debug-pass=Structure 的输出
-    pass_list = [
-    "tti", "targetlibinfo", "tbaa", "scoped-noalias", "assumption-cache-tracker",
-    "profile-summary-info", "forceattrs", "inferattrs", "ipsccp", "called-value-propagation",
-    "attributor", "globalopt", "domtree", "mem2reg", "deadargelim", "basicaa", "aa", "loops",
-    "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter", "instcombine", "simplifycfg",
-    "basiccg", "globals-aa", "prune-eh", "always-inline", "functionattrs", "domtree", "sroa",
-    "basicaa", "aa", "memoryssa", "early-cse-memssa", "basicaa", "aa", "lazy-value-info",
-    "jump-threading", "correlated-propagation", "simplifycfg", "domtree", "basicaa", "aa",
-    "loops", "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter", "instcombine",
-    "libcalls-shrinkwrap", "loops", "branch-prob", "block-freq", "lazy-branch-prob",
-    "lazy-block-freq", "opt-remark-emitter", "pgo-memop-opt", "basicaa", "aa", "loops",
-    "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter", "tailcallelim", "simplifycfg",
-    "reassociate", "domtree", "loops", "loop-simplify", "lcssa-verification", "lcssa", "basicaa",
-    "aa", "scalar-evolution", "loop-rotate", "licm", "loop-unswitch", "simplifycfg", "domtree",
-    "basicaa", "aa", "loops", "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter",
-    "instcombine", "loop-simplify", "lcssa-verification", "lcssa", "scalar-evolution", "indvars",
-    "loop-idiom", "loop-deletion", "loop-unroll", "phi-values", "memdep", "memcpyopt", "sccp",
-#    "loop-idiom", "loop-deletion", "loop-unroll -unroll-threshold=0", "phi-values", "memdep", "memcpyopt", "sccp",
-    "demanded-bits", "bdce", "basicaa", "aa", "lazy-branch-prob", "lazy-block-freq",
-    "opt-remark-emitter", "instcombine", "lazy-value-info", "jump-threading", "correlated-propagation",
-    "basicaa", "aa", "phi-values", "memdep", "dse", "loops", "loop-simplify", "lcssa-verification",
-    "lcssa", "basicaa", "aa", "scalar-evolution", "licm", "postdomtree", "adce", "simplifycfg",
-    "domtree", "basicaa", "aa", "loops", "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter",
-    "instcombine", "barrier", "basiccg", "rpo-functionattrs", "globalopt", "globaldce", "basiccg",
-    "globals-aa", "float2int", "domtree", "loops", "loop-simplify", "lcssa-verification", "lcssa",
-    "basicaa", "aa", "scalar-evolution", "loop-rotate", "loop-accesses", "lazy-branch-prob",
-    "lazy-block-freq", "opt-remark-emitter", "loop-distribute", "branch-prob", "block-freq",
-    "scalar-evolution", "basicaa", "aa", "loop-accesses", "demanded-bits", "lazy-branch-prob",
-    "lazy-block-freq", "opt-remark-emitter", "loop-vectorize", "loop-simplify", "scalar-evolution",
-    "aa", "loop-accesses", "lazy-branch-prob", "lazy-block-freq", "loop-load-elim", "basicaa", "aa",
-    "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter", "instcombine", "simplifycfg", "domtree",
-    "basicaa", "aa", "loops", "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter", "instcombine",
-    "loop-simplify", "lcssa-verification", "lcssa", "scalar-evolution", "loop-unroll", "lazy-branch-prob",
-#    "loop-simplify", "lcssa-verification", "lcssa", "scalar-evolution", "loop-unroll -unroll-threshold=0", "lazy-branch-prob",
-    "lazy-block-freq", "opt-remark-emitter", "transform-warning", "alignment-from-assumptions",
-    "strip-dead-prototypes", "domtree", "loops", "branch-prob", "block-freq", "loop-simplify",
-    "lcssa-verification", "lcssa", "basicaa", "aa", "scalar-evolution", "block-freq", "loop-sink",
-    "lazy-branch-prob", "lazy-block-freq", "opt-remark-emitter"
-    ]
-    print(f"pass_list: {pass_list}")
+    preprocess_file = args.preprocess_file
 
     # 验证输入文件是否存在
     if not os.path.exists(input_file):
@@ -160,6 +122,12 @@ def main():
     check_tool_available("llvm-diff")
 
     # 分析 Pass
+
+#    pass_list = ["-bdce", "-dce", "-inline", "-simplifycfg"]
+    pass_list = get_pass_info_list(preprocess_file)
+    print(f"pass_list: {pass_list}")
+
+
     effective_passes, ineffective_passes = analyze_passes(input_file, pass_list, order)
 
     # 输出结果
